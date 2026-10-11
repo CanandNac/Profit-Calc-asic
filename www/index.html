@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Profit Calc</title>
+<style>
+  :root { color-scheme: dark; --bg:#0b1020; --panel:#131b2e; --panel2:#0e1628; --line:#27344d; --text:#edf2ff; --muted:#9eacc5; --accent:#7c9cff; --good:#6ee7b7; --bad:#fda4af; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px 14px; background:radial-gradient(ellipse at top,#172444 0%,var(--bg) 58%); color:var(--text); font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+  main { width:min(760px,100%); margin:0 auto; }
+  h1 { font-size:clamp(25px,5vw,35px); line-height:1.15; margin:0 0 8px; letter-spacing:-.6px; }
+  .sub { color:var(--muted); margin:0 0 24px; }
+  .panel { background:rgba(19,27,46,.96); border:1px solid var(--line); border-radius:18px; padding:20px; margin-bottom:16px; box-shadow:0 12px 35px #0002; }
+  .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+  label { display:block; color:var(--muted); font-size:14px; margin-bottom:7px; }
+  input { width:100%; border:1px solid #35445f; border-radius:11px; background:var(--panel2); color:var(--text); padding:13px 12px; font:inherit; outline:none; }
+  input:focus { border-color:var(--accent); box-shadow:0 0 0 3px #7c9cff25; }
+  .hint { color:var(--muted); font-size:12px; margin-top:6px; }
+  .results { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .metric { background:var(--panel2); border:1px solid var(--line); border-radius:14px; padding:15px; min-width:0; }
+  .metric .name { color:var(--muted); font-size:13px; margin-bottom:8px; }
+  .metric .value { font-size:clamp(19px,4vw,25px); font-weight:750; overflow-wrap:anywhere; letter-spacing:-.4px; }
+  .metric.primary { border-color:#536eb2; background:linear-gradient(135deg,#1b2b50,#111a2d); }
+  .positive { color:var(--good); } .negative { color:var(--bad); }
+  .wide { grid-column:1/-1; }
+  .details { display:grid; grid-template-columns:1fr auto; gap:10px 16px; }
+  .details div:nth-child(odd) { color:var(--muted); }
+  .details div:nth-child(even) { text-align:right; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+  .foot { color:var(--muted); font-size:12px; margin:14px 2px 0; }
+  @media(max-width:520px) { .fields,.results { grid-template-columns:1fr; } .wide { grid-column:auto; } .panel { padding:16px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Калькулятор прибыльности</h1>
+  <p class="sub">Расчёт выручки, электричества, налога и срока окупаемости.</p>
+
+  <section class="panel">
+    <div class="fields">
+      <div>
+        <label for="devices">Количество устройств, шт.</label>
+        <input id="devices" type="number" min="1" step="1" value="1" inputmode="numeric">
+        
+      </div>
+      <div>
+        <label for="hashrate">Мощность одного устройства, TH/s</label>
+        <input id="hashrate" type="number" min="0" step="0.01" value="234" inputmode="decimal">
+        <div class="hint">Введите общий хешрейт в TH/s.</div>
+      </div>
+      <div>
+        <label for="btcPrice">Цена биткоина, ₽</label>
+        <input id="btcPrice" type="number" min="0" step="100" value="7116735" inputmode="decimal">
+      </div>
+      <div>
+        <label for="electricity">Цена электричества, ₽/кВт·ч</label>
+        <input id="electricity" type="number" min="0" step="0.01" value="7" inputmode="decimal">
+        <div class="hint">Укажите свой тариф за 1 кВт·ч.</div>
+      </div>
+      <div>
+        <label for="tax">Налог, %</label>
+        <input id="tax" type="number" min="0" max="100" step="0.1" value="15" inputmode="decimal">
+      </div>
+      <div>
+        <label>Цена одного устройства</label>
+        <input type="text" value="164 650 ₽" readonly aria-label="Цена одного устройства">
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="results">
+      <div class="metric">
+        <div class="name">Потребление электричества в месяц</div>
+        <div class="value" id="consumption">25 272 кВт·ч</div>
+      </div>
+      <div class="metric primary">
+        <div class="name">Окупаемость</div>
+        <div class="value" id="payback">—</div>
+      </div>
+      <div class="metric">
+        <div class="name">Доход в месяц по формуле</div>
+        <div class="value" id="revenue">—</div>
+      </div>
+      <div class="metric">
+        <div class="name">Чистая прибыль в месяц</div>
+        <div class="value positive" id="profit">—</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2 style="font-size:18px;margin:0 0 16px">Подробный расчёт</h2>
+    <div class="details">
+      <div>Общая стоимость устройств</div><div id="totalCost">1 646 500 ₽</div>
+      <div>Налог за месяц</div><div id="taxCost">—</div>
+      <div>Расходы на электричество в месяц</div><div id="powerCost">—</div>
+      <div>Прибыль в день (условно)</div><div id="dailyProfit">—</div>
+    </div>
+    <p class="foot">Доход в месяц считается по формуле: (введённый TH/s × 1 885 928 214 ÷ 132 720 000 000 000) × цена BTC в рублях. Налог вычитается из этого дохода, затем вычитается электричество. Потребление 2 527,2 кВт·ч принято на одно устройство в месяц; месяц для окупаемости равен 30 дням. Другие расходы не учитываются.</p>
+  </section>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const fmt = (n, digits = 2) => Number.isFinite(n)
+    ? n.toLocaleString('ru-RU', { maximumFractionDigits: digits, minimumFractionDigits: 0 })
+    : '—';
+  const rub = n => Number.isFinite(n) ? fmt(n) + ' ₽' : '—';
+
+  function calculate() {
+    const rawDevices = Number($('devices').value);
+    const devices = Math.floor(rawDevices);
+    const rate = Number($('electricity').value);
+    const taxPercent = Number($('tax').value);
+    const hashrate = Number($('hashrate').value);
+    const btcPrice = Number($('btcPrice').value);
+    const valid = $('devices').value !== '' && devices >= 1 &&
+      $('electricity').value !== '' && rate >= 0 &&
+      $('tax').value !== '' && taxPercent >= 0 && taxPercent <= 100 &&
+      $('hashrate').value !== '' && hashrate >= 0 &&
+      $('btcPrice').value !== '' && btcPrice >= 0;
+
+    if (!valid) {
+      ['consumption','payback','revenue','profit','totalCost','taxCost','powerCost','dailyProfit'].forEach(id => $(id).textContent = 'Проверьте ввод');
+      return;
+    }
+
+    const revenue = (hashrate * devices * 1885928214 / 132720000000000) * btcPrice;
+    const taxCost = revenue * taxPercent / 100;
+    const consumption = devices * 2527.2;
+    const powerCost = consumption * rate;
+    const profit = revenue - taxCost - powerCost;
+    const totalCost = devices * 164650;
+    const dailyProfit = profit / 30;
+    const paybackDays = dailyProfit > 0 ? totalCost / dailyProfit : Infinity;
+
+    $('consumption').textContent = fmt(consumption, 1) + ' кВт·ч';
+    $('revenue').textContent = rub(revenue);
+    $('totalCost').textContent = rub(totalCost);
+    $('taxCost').textContent = rub(taxCost);
+    $('powerCost').textContent = rub(powerCost);
+    $('profit').textContent = rub(profit);
+    $('dailyProfit').textContent = rub(dailyProfit);
+    $('profit').className = 'value ' + (profit >= 0 ? 'positive' : 'negative');
+    $('dailyProfit').className = profit >= 0 ? '' : 'negative';
+    $('payback').textContent = paybackDays === Infinity ? 'Не окупается' : fmt(paybackDays, 1) + ' дней';
+  }
+
+  ['devices','hashrate','btcPrice','electricity','tax'].forEach(id => $(id).addEventListener('input', calculate));
+  calculate();
+})();
+</script>
+</body>
+</html>
