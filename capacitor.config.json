@@ -1,0 +1,9 @@
+{
+  "appId": "com.profitcalc.app",
+  "appName": "Profit Calc",
+  "webDir": "www",
+  "backgroundColor": "#0b1020",
+  "android": {
+    "allowMixedContent": false
+  }
+}
